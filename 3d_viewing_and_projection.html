@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Viewing and Projection</title>
+</head>
+<body>
+    <canvas id="webgl-canvas" width="500" height="500"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script>
+<script>
+// Vertex shader source code
+const vertexShaderSource = `
+    attribute vec3 aPosition;
+    attribute vec3 vColor;
+    uniform mat4 mMatrix, vMatrix, pMatrix;
+    varying vec3 fColor;
+
+    void main() {
+        fColor = vColor;
+        vec4 hPosition = vec4(aPosition, 1.0);
+        gl_Position = pMatrix * vMatrix * mMatrix * hPosition;
+    }
+`;
+</script>
+<script>
+// Fragment shader source code
+const fragmentShaderSource = `
+    precision mediump float;
+    varying vec3 fColor;
+
+    void main() {
+        gl_FragColor = vec4(fColor, 1.0);
+    }
+`;
+</script>
+<script type="text/javascript" src="setupShader.js"></script>
+<script>
+// Set up geometry data
+
+// Cube
+const cubeVertices = new Float32Array([
+    0.5,  0.5,  -.5,  // right, top,    far
+    -0.5,  0.5,  -.5, // left,  top,    far
+    -0.5, -0.5,  -.5, // left,  bottom, far
+    0.5, -0.5,  -.5,  // right, bottom, far
+    0.5,  0.5,  .5,   // right, top,    near
+    -0.5,  0.5,  .5,  // left,  top,    near
+    -0.5, -0.5,  .5,  // left,  bottom, near
+    0.5, -0.5,  .5    // right, bottom, near
+]);
+
+// colors for each vertex
+const cubeColors = new Float32Array([
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0,
+    1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0,
+    1.0, 0.0, 0.0	
+]);
+
+// Indices need to be Unsigned Short Array
+const cubeIndices = new Uint16Array([
+    0,1,2, // far face
+    0,2,3, // far face
+    0,3,7, // right face
+    0,7,4, // right face
+    6,2,3, // bottom face
+    6,3,7, // bottom face
+    5,1,2, // left face
+    5,2,6, // left face
+    5,1,0, // top face
+    5,0,4, // top face
+    5,6,7, // near face
+    5,7,4  // near face
+]);
+
+// Cylinder
+const cylinderVertices = new Float32Array([
+    0.5,  0.5,  -.5,  // right, top,    far
+    -0.5,  0.5,  -.5, // left,  top,    far
+    -0.5, -0.5,  -.5, // left,  bottom, far
+    0.5, -0.5,  -.5,  // right, bottom, far
+    0.5,  0.5,  .5,   // right, top,    near
+    -0.5,  0.5,  .5,  // left,  top,    near
+    -0.5, -0.5,  .5,  // left,  bottom, near
+    0.5, -0.5,  .5    // right, bottom, near
+]);
+
+// Indices need to be Unsigned Short Array
+const cylinderIndices = new Uint16Array([
+    0,1,2, // far face
+    0,2,3, // far face
+    0,3,7, // right face
+    0,7,4, // right face
+    6,2,3, // bottom face
+    6,3,7, // bottom face
+    5,1,2, // left face
+    5,2,6, // left face
+    5,1,0, // top face
+    5,0,4, // top face
+    5,6,7, // near face
+    5,7,4  // near face
+]);
+
+// Remember - can reuse same buffer b/c we draw sequentially!!! (so will only create 1)
+// Create a buffer and upload the vertex data
+const vertex_buffer = gl.createBuffer();
+const color_buffer = gl.createBuffer();
+const index_buffer = gl.createBuffer();
+
+const aPositionLocation = gl.getAttribLocation(program, 'aPosition');
+const aColorLocation = gl.getAttribLocation(program, 'vColor');
+gl.enableVertexAttribArray(aPositionLocation);
+gl.enableVertexAttribArray(aColorLocation);
+
+// same idea as buffer - we sequentially overwrite the location of mMatrix so no need for another
+// MVP matrices locations
+const mMatrixLocation = gl.getUniformLocation(program, "mMatrix");
+const vMatrixLocation = gl.getUniformLocation(program, "vMatrix");
+const pMatrixLocation = gl.getUniformLocation(program, "pMatrix");
+
+// setup and pass the camera and view matrices
+let vMatrix = mat4.create();
+let pMatrix = mat4.create();
+
+// individual model matrices per object (cube, cylinder, sphere);
+let cubeMMatrix = mat4.create();
+let cylinderMMatrix = mat4.create();
+
+vMatrix = mat4.lookAt(vMatrix, [0, 0, 3], [0, 0, 0], [0, 1, 0]);
+pMatrix = mat4.perspective(pMatrix, 45, 1, 1, 10);
+
+// set initial positions
+mat4.translate(cubeMMatrix, cubeMMatrix, [1.0, 0, 0]);
+mat4.translate(cylinderMMatrix, cylinderMMatrix, [-1.0, 0, 0]);
+
+function drawCube() {
+    // send matrix data into shader
+    gl.uniformMatrix4fv(mMatrixLocation, false, cubeMMatrix);
+
+    // draw and update buffer to contain cube vertices
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer); // target specific GPU memory block
+    gl.bufferData(gl.ARRAY_BUFFER, cubeVertices, gl.STATIC_DRAW); // update buffer to contain cube vertices
+    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0); // how GPU reads data in buffer
+
+    // same but with colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, cubeColors, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cubeIndices, gl.STATIC_DRAW);
+    gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_SHORT, 0);
+}
+
+function drawCylinder(radius, height, numSeg) {
+    // will keep cylinder at default position (middle of canvas)
+    gl.uniformMatrix4fv(mMatrixLocation, false, cylinderMMatrix);
+
+    // calculate individual vertices within in each side/segment (face?)
+    const sides = [];
+    for (let i = 0; i < numSeg; i++) {
+        const angle = (i / numSeg) * 2 * Math.PI;
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+        sides.push(x, height / 2, z);
+        sides.push(x, -height / 2, z);
+    }
+    sides.push(radius, height / 2, 0);
+    sides.push(radius, -height / 2, 0);
+
+    // update buffer to contain cylinder side/segment vertices
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sides), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+    // same but w/ colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, cylinderSideColor(sides.length / 3), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+    // draw
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, numSeg * 2 + 2);
+
+    // top disk
+    const topDisk = [0, height / 2, 0];
+    for (let i = 0; i <= numSeg; i++) {
+        const angle = (i / numSeg) * 2 * Math.PI;
+        topDisk.push(radius * Math.cos(angle), height / 2, radius * Math.sin(angle));
+    }
+
+    // update buffer to contain cylinder top disk
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(topDisk), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+    // same but w/ colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, cylinderDiskColor(topDisk.length / 3), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, numSeg + 2);
+
+    // bottom disk
+    const bottomDisk = [0, -height / 2, 0];
+    for (let i = numSeg; i >= 0; i--) {
+        const angle = (i / numSeg) * 2 * Math.PI;
+        bottomDisk.push(radius * Math.cos(angle), -height / 2, radius * Math.sin(angle));
+    }
+
+    // update buffer to contain cylinder bottom disk
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bottomDisk), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+    // same but w/ colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, cylinderDiskColor(bottomDisk.length / 3), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+    
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, numSeg + 2);
+}
+
+// need different colors to see visible cylinder rotation
+function cylinderSideColor(numVerts) {
+    const colors = [
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0,
+    ];
+
+    const c = [];
+    for (let i = 0; i < numVerts; i++) {
+        const idx = (i % 3) * 3;
+        c.push(colors[idx], colors[idx+1], colors[idx+2]);
+    }
+    return new Float32Array(c);
+}
+
+function cylinderDiskColor(numVerts) {
+    const c = [];
+    for (let i = 0; i < numVerts; i++) {
+        c.push(1.0, 0.5, 0.5);
+    }
+    return new Float32Array(c);
+}
+
+function drawSphere() {
+
+}
+
+function draw() {
+    // Set up the viewport and clear the canvas
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);
+
+    // pass MVP matrices to the shader
+    gl.uniformMatrix4fv(vMatrixLocation, false, vMatrix);
+    gl.uniformMatrix4fv(pMatrixLocation, false, pMatrix);
+
+    drawCube();
+    drawCylinder(0.25, 0.5, 32);
+}
+
+document.addEventListener('keydown', (e)=>{
+    if (e.key == 'w'){
+        mat4.rotateX(cubeMMatrix, cubeMMatrix, 0.1);
+        mat4.rotateX(cylinderMMatrix, cylinderMMatrix, 0.1);
+    }
+    else if (e.key == 's'){
+        mat4.rotateX(cubeMMatrix, cubeMMatrix, -0.1);
+        mat4.rotateX(cylinderMMatrix, cylinderMMatrix, -0.1);
+    }
+    else if (e.key == 'a'){
+        mat4.rotateY(cubeMMatrix, cubeMMatrix, -0.1);
+        mat4.rotateY(cylinderMMatrix, cylinderMMatrix, -0.1);
+    }
+    else if (e.key == 'd'){
+        mat4.rotateY(cubeMMatrix, cubeMMatrix, 0.1);
+        mat4.rotateY(cylinderMMatrix, cylinderMMatrix, 0.1);
+    }
+    else if (e.key == 'q'){
+        mat4.rotateZ(cubeMMatrix, cubeMMatrix, -0.1);
+        mat4.rotateZ(cylinderMMatrix, cylinderMMatrix, -0.1);
+    }
+    else if (e.key == 'e'){
+        mat4.rotateZ(cubeMMatrix, cubeMMatrix, 0.1);
+        mat4.rotateZ(cylinderMMatrix, cylinderMMatrix, 0.1);
+    }
+    else if (e.key == 'ArrowLeft'){
+        mat4.rotateY(vMatrix, vMatrix, -0.1);
+    }
+    else if (e.key == 'ArrowRight'){
+        mat4.rotateY(vMatrix, vMatrix, 0.1);
+    }
+    else if (e.key == 'ArrowUp'){
+        mat4.rotateX(vMatrix, vMatrix, -0.1);
+    }
+    else if (e.key == 'ArrowDown'){
+        mat4.rotateX(vMatrix, vMatrix, 0.1);
+    }
+    draw();
+}, false);
+
+const instructions = document.createElement('div');
+instructions.style.position = 'absolute';
+instructions.style.top = '10px';
+instructions.style.left = '520px';
+instructions.style.color = 'black';
+instructions.style.fontFamily = 'Arial, sans-serif';
+instructions.style.fontSize = '14px';
+instructions.style.lineHeight = '1.6';
+instructions.innerHTML = `
+    <h3>Controls:</h3>
+    <p>W/S: Rotate Up/Down</p>
+    <p>A/D: Rotate Left/Right</p>
+    <p>Q/E: Rotate CCW/CW</p>
+    <h3>Camera Controls:</h3>
+    <p>Arrow Left/Right: Pan</p>
+    <p>Arrow Up/Down: Tilt</p>
+`;
+document.body.appendChild(instructions);
+
+draw();
+
+</script>
+</body>
+</html>
