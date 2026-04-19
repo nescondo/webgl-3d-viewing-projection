@@ -360,16 +360,24 @@ class ObjectWebGL {
     }
 }
 
-// build scene hierarchy
+// scene hierarchy
 
 // layer 1 - overall scene
 const scene = new ObjectWebGL();
 
-// layer 2 - person (child of scene)
-const person = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0]));
-scene.children.push(person);
+// layer 2 - alien, cylinder (children of scene)
+const cylinder = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-1.0, -0.5, 0]));
+const cylinderSides = setCylinderSides(0.25, 0.5, 32);
+cylinder.shapes.push(new Shape(cylinderSides, null, mat4.create(), 'cylinderSides'));
+const [topDisk, bottomDisk] = setCylinderDisks(0.25, 0.5, 32);
+cylinder.shapes.push(new Shape(topDisk, null, mat4.create(), 'disk'));
+cylinder.shapes.push(new Shape(bottomDisk, null, mat4.create(), 'disk'));
+scene.children.push(cylinder);
 
-// body (shape of person)
+const alien = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0]));
+scene.children.push(alien);
+
+// body (shape of alien)
 const bodyPoints = [
     0.25,   0.4,  -.25,     // right, top,    far
     -0.25,  0.4,  -.25,     // left,  top,    far
@@ -381,9 +389,9 @@ const bodyPoints = [
     0.25,  -0.4,   .25      // right, bottom, near
 ];
 const [bodyVertices, bodyIndices] = setCube(bodyPoints);
-person.shapes.push(new Shape(bodyVertices, bodyIndices, mat4.create(), 'cube'));
+alien.shapes.push(new Shape(bodyVertices, bodyIndices, mat4.create(), 'cube'));
 
-// layer 3 - left leg, right leg, left arm, right arm (child of person)
+// layer 3 - left leg, right leg, left arm, right arm, head (children of alien)
 
 // left leg
 const leftLeg = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-0.175, -.7, 0]));
@@ -399,13 +407,13 @@ const legPoints = [
 ];
 const [leftLegVertices, leftLegIndices] = setCube(legPoints);
 leftLeg.shapes.push(new Shape(leftLegVertices, leftLegIndices, mat4.create(), 'cube'));
-person.children.push(leftLeg);
+alien.children.push(leftLeg);
 
 // right leg
 const rightLeg = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0.175, -.7, 0]));
 const [rightLegVertices, rightLegIndices] = setCube(legPoints);
 rightLeg.shapes.push(new Shape(rightLegVertices, rightLegIndices, mat4.create(), 'cube'));
-person.children.push(rightLeg);
+alien.children.push(rightLeg);
 
 // left arm
 const leftArm = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-.325, 0, 0]));
@@ -421,19 +429,21 @@ const armPoints = [
 ];
 const [leftArmVertices, leftArmIndices] = setCube(armPoints);
 leftArm.shapes.push(new Shape(leftArmVertices, leftArmIndices, mat4.create(), 'cube'));
-person.children.push(leftArm);
+alien.children.push(leftArm);
 
 // right arm
 const rightArm = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [.325, 0, 0]));
 const [rightArmVertices, rightArmIndices] = setCube(armPoints);
 rightArm.shapes.push(new Shape(rightArmVertices, rightArmIndices, mat4.create(), 'cube'));
-person.children.push(rightArm);
+alien.children.push(rightArm);
 
 // head
 const head = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0.65, 0]));
 const [headVertices, headIndices] = setSphere(0.25, 20, 20);
 head.shapes.push(new Shape(headVertices, headIndices, mat4.create(), 'sphere'));
-person.children.push(head);
+alien.children.push(head);
+
+// layer 4 eye (child of head)
 
 // eye
 const eye = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0.25]));
@@ -441,41 +451,142 @@ const [eyeVertices, eyeIndices] = setSphere(0.1, 20, 20);
 eye.shapes.push(new Shape(eyeVertices, eyeIndices, mat4.create(), 'sphere', true));
 head.children.push(eye);
 
-// layer 3 pupil (child of eye)
+// layer 5 pupil (child of eye)
 const pupil = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0.075]));
 const [pupilVertices, pupilIndices] = setSphere(0.05, 20, 20);
 pupil.shapes.push(new Shape(pupilVertices, pupilIndices, mat4.create(), 'sphere', true, color=[1.0, 0.0, 0.0]));
 eye.children.push(pupil);
 
-// cylinder at [-1, 0, 0]
-const cylinderObj = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-1.0, -1.5, 0]));
-const cylinderSides = setCylinderSides(0.25, 0.5, 32);
-cylinderObj.shapes.push(new Shape(cylinderSides, null, mat4.create(), 'cylinderSides'));
-const [topDisk, bottomDisk] = setCylinderDisks(0.25, 0.5, 32);
-cylinderObj.shapes.push(new Shape(topDisk, null, mat4.create(), 'disk'));
-cylinderObj.shapes.push(new Shape(bottomDisk, null, mat4.create(), 'disk'));
-scene.children.push(cylinderObj);
-
 document.addEventListener('keydown', (e)=>{
     const identity = mat4.create();
+    // translation of scene (layer 1)
     if (e.key == 'w'){
-        scene.local_transform(mat4.fromXRotation(identity, 0.1));
+        scene.local_transform(mat4.fromTranslation(identity, [0, 0.1, 0]));
     }
     else if (e.key == 's'){
-        scene.local_transform(mat4.fromXRotation(identity, -0.1));
+        scene.local_transform(mat4.fromTranslation(identity, [0, -0.1, 0]));
     }
     else if (e.key == 'a'){
-        scene.local_transform(mat4.fromYRotation(identity, -0.1));
+        scene.local_transform(mat4.fromTranslation(identity, [-0.1, 0, 0]));
     }
     else if (e.key == 'd'){
-        scene.local_transform(mat4.fromYRotation(identity, 0.1));
+        scene.local_transform(mat4.fromTranslation(identity, [0.1, 0, 0]));
     }
-    else if (e.key == 'q'){
+
+    // rotation of scene (layer 1)
+    else if (e.key == 'e'){
         scene.local_transform(mat4.fromZRotation(identity, -0.1));
     }
-    else if (e.key == 'e'){
+    else if (e.key == 'q'){
         scene.local_transform(mat4.fromZRotation(identity, 0.1));
     }
+
+    // scaling of scene (layer 1)
+    else if (e.key == 'r') {
+        scene.local_transform(mat4.fromScaling(identity, [1.1, 1.1, 1.1]));
+    }
+    else if (e.key == 't') {
+        scene.local_transform(mat4.fromScaling(identity, [0.9, 0.9, 0.9]));
+    }
+
+    // translation of alien (layer 2)
+    else if (e.key == '1'){
+        alien.local_transform(mat4.fromTranslation(identity, [0, 0.1, 0]));
+    }
+    else if (e.key == '2'){
+        alien.local_transform(mat4.fromTranslation(identity, [0, -0.1, 0]));
+    }
+    else if (e.key == '3'){
+        alien.local_transform(mat4.fromTranslation(identity, [-0.1, 0, 0]));
+    }
+    else if (e.key == '4'){
+        alien.local_transform(mat4.fromTranslation(identity, [0.1, 0, 0]));
+    }
+
+    // rotation of alien (layer 2)
+    else if (e.key == '5'){
+        alien.local_transform(mat4.fromZRotation(identity, -0.1));
+    }
+    else if (e.key == '6'){
+        alien.local_transform(mat4.fromZRotation(identity, 0.1));
+    }
+
+    // scaling of alien (layer 2)
+    else if (e.key == '7'){
+        alien.local_transform(mat4.fromScaling(identity, [1.1, 1.1, 1.1]));
+    }
+    else if (e.key == '8'){
+        alien.local_transform(mat4.fromScaling(identity, [0.9, 0.9, 0.9]));
+    }
+
+    // translation of cylinder (layer 2)
+    else if (e.key == '!'){
+        cylinder.local_transform(mat4.fromTranslation(identity, [0, 0.1, 0]));
+    }
+    else if (e.key == '@'){
+        cylinder.local_transform(mat4.fromTranslation(identity, [0, -0.1, 0]));
+    }
+    else if (e.key == '#'){
+        cylinder.local_transform(mat4.fromTranslation(identity, [-0.1, 0, 0]));
+    }
+    else if (e.key == '$'){
+        cylinder.local_transform(mat4.fromTranslation(identity, [0.1, 0, 0]));
+    }
+
+    // rotation of cylinder (layer 2)
+    else if (e.key == '%'){
+        cylinder.local_transform(mat4.fromZRotation(identity, -0.1));
+    }
+    else if (e.key == '^'){
+        cylinder.local_transform(mat4.fromZRotation(identity, 0.1));
+    }
+
+    // scaling of cylinder (layer 2)
+    else if (e.key == '&'){
+        cylinder.local_transform(mat4.fromScaling(identity, [1.1, 1.1, 1.1]));
+    }
+    else if (e.key == '*'){
+        cylinder.local_transform(mat4.fromScaling(identity, [0.9, 0.9, 0.9]));
+    }
+
+    // translation of head (layer 3)
+    else if (e.key == 'f'){
+        head.local_transform(mat4.fromTranslation(identity, [0, 0.1, 0]));
+    }
+    else if (e.key == 'g'){
+        head.local_transform(mat4.fromTranslation(identity, [0, -0.1, 0]));
+    }
+    else if (e.key == 'h'){
+        head.local_transform(mat4.fromTranslation(identity, [-0.1, 0, 0]));
+    }
+    else if (e.key == 'j'){
+        head.local_transform(mat4.fromTranslation(identity, [0.1, 0, 0]));
+    }
+
+    // rotation of head (layer 3)
+    else if (e.key == 'k'){
+        head.local_transform(mat4.fromZRotation(identity, -0.1));
+    }
+    else if (e.key == 'l'){
+        head.local_transform(mat4.fromZRotation(identity, 0.1));
+    }
+
+    // scaling of alien (layer 3)
+    else if (e.key == ';'){
+        head.local_transform(mat4.fromScaling(identity, [1.1, 1.1, 1.1]));
+    }
+    else if (e.key == '\''){
+        head.local_transform(mat4.fromScaling(identity, [0.9, 0.9, 0.9]));
+    }
+
+    // scaling of alien eye (layer 4)
+    else if (e.key == 'c') {
+        eye.local_transform(mat4.fromScaling(identity, [1.1, 1.1, 1.1]));
+    }
+    else if (e.key == 'v') {
+        eye.local_transform(mat4.fromScaling(identity, [0.9, 0.9, 0.9]));
+    }
+
     else if (e.key == 'ArrowLeft'){
         mat4.rotateY(vMatrix, vMatrix, -0.1);
     }
@@ -488,8 +599,11 @@ document.addEventListener('keydown', (e)=>{
     else if (e.key == 'ArrowDown'){
         mat4.rotateX(vMatrix, vMatrix, 0.1);
     }
-    else if (e.key == "o"){
-        person.local_transform(mat4.fromXRotation(identity, 0.1));
+    else if (e.key == 'b'){
+        mat4.rotateZ(vMatrix, vMatrix, -0.1);
+    }
+    else if (e.key == 'n'){
+        mat4.rotateZ(vMatrix, vMatrix, 0.1);
     }
     draw();
 }, false);
@@ -502,15 +616,91 @@ instructions.style.color = 'black';
 instructions.style.fontFamily = 'Arial, sans-serif';
 instructions.style.fontSize = '14px';
 instructions.style.lineHeight = '1.6';
+instructions.style.display = 'flex';
+instructions.style.flexDirection = 'row';
+instructions.style.gap = '20px';
+
 instructions.innerHTML = `
-    <h3>Controls:</h3>
-    <p>W/S: Rotate Up/Down</p>
-    <p>A/D: Rotate Left/Right</p>
-    <p>Q/E: Rotate CCW/CW</p>
-    <h3>Camera Controls:</h3>
-    <p>Arrow Left/Right: Pan</p>
-    <p>Arrow Up/Down: Tilt</p>
+    <div>
+        <h3>Scene Controls (Layer 1):</h3>
+        <p><strong>Translation:</strong></p>
+        <ul>
+            <li>W/S: Up/Down</li>
+            <li>A/D: Left/Right</li>
+        </ul>
+        <p><strong>Rotation:</strong></p>
+        <ul>
+            <li>Q/E: CCW/CW</li>
+        </ul>
+        <p><strong>Scaling:</strong></p>
+        <ul>
+            <li>R/T: Larger/Smaller</li>
+        </ul>
+    </div>
+    <div>
+        <h3>Alien Controls (Layer 2):</h3>
+        <p><strong>Translation:</strong></p>
+        <ul>
+            <li>1/2: Up/Down</li>
+            <li>3/4: Left/Right</li>
+        </ul>
+        <p><strong>Rotation:</strong></p>
+        <ul>
+            <li>5/6: CCW/CW</li>
+        </ul>
+        <p><strong>Scaling:</strong></p>
+        <ul>
+            <li>7/8: Larger/Smaller</li>
+        </ul>
+
+        <h3>Cylinder Controls (Layer 2):</h3>
+        <p><strong>Translation:</strong></p>
+        <ul>
+            <li>!/@: Up/Down</li>
+            <li>#/$: Left/Right</li>
+        </ul>
+        <p><strong>Rotation:</strong></p>
+        <ul>
+            <li>%/^: CCW/CW</li>
+        </ul>
+        <p><strong>Scaling:</strong></p>
+        <ul>
+            <li>&/*: Larger/Smaller</li>
+        </ul>
+    </div>
+    <div>
+        <h3>Alien Head Controls (Layer 3):</h3>
+        <p><strong>Translation:</strong></p>
+        <ul>
+            <li>f/g: Up/Down</li>
+            <li>h/j: Left/Right</li>
+        </ul>
+        <p><strong>Rotation:</strong></p>
+        <ul>
+            <li>k/l: CCW/CW</li>
+        </ul>
+        <p><strong>Scaling:</strong></p>
+        <ul>
+            <li>semi-colon (;)/single quote ('): Larger/Smaller</li>
+        </ul>
+    </div>
+    <div>
+        <h3>Alien Eye Controls (Layer 4):</h3>
+        <p><strong>Scaling:</strong></p>
+        <ul>
+            <li>C/V: Larger/Smaller</li>
+        </ul>
+    </div>
+    <div>
+        <h3>Camera Controls:</h3>
+        <ul>
+            <li>Arrow Up/Down: Pitch</li>
+            <li>Arrow Left/Right: Yaw</li>
+            <li>B/N: Roll</li>
+        </ul>
+    </div>
 `;
+
 document.body.appendChild(instructions);
 
 draw();
