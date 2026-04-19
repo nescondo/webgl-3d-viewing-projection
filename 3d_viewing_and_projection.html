@@ -136,25 +136,20 @@ function drawCube() {
     gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_SHORT, 0);
 }
 
-function drawCylinder(radius, height, numSeg) {
+function drawCylinder() {
+    const radius = 0.25;
+    const height = 0.5;
+    const numSeg = 32;
+
     // send matrix data into shader
     gl.uniformMatrix4fv(mMatrixLocation, false, cylinderMMatrix);
 
-    // calculate individual vertices within in each side/segment (face?)
-    const sides = [];
-    for (let i = 0; i < numSeg; i++) {
-        const angle = (i / numSeg) * 2 * Math.PI;
-        const x = radius * Math.cos(angle);
-        const z = radius * Math.sin(angle);
-        sides.push(x, height / 2, z);
-        sides.push(x, -height / 2, z);
-    }
-    sides.push(radius, height / 2, 0);
-    sides.push(radius, -height / 2, 0);
+    // sides of cylinder created
+    const sides = setCylinderSides(radius, height, numSeg);
 
     // update buffer to contain cylinder side/segment vertices
     gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sides), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, sides, gl.STATIC_DRAW);
     gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
 
     // same but w/ colors
@@ -162,19 +157,15 @@ function drawCylinder(radius, height, numSeg) {
     gl.bufferData(gl.ARRAY_BUFFER, threeColor(sides.length / 3), gl.STATIC_DRAW);
     gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
 
-    // draw
+    // draw sides
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, numSeg * 2 + 2);
 
-    // top disk
-    const topDisk = [0, height / 2, 0];
-    for (let i = 0; i <= numSeg; i++) {
-        const angle = (i / numSeg) * 2 * Math.PI;
-        topDisk.push(radius * Math.cos(angle), height / 2, radius * Math.sin(angle));
-    }
+    // top disk, bottom disk of cylinder created
+    const [topDisk, bottomDisk] = setCylinderDisks(radius, height, numSeg);
 
     // update buffer to contain cylinder top disk
     gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(topDisk), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, topDisk, gl.STATIC_DRAW);
     gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
 
     // same but w/ colors
@@ -182,18 +173,12 @@ function drawCylinder(radius, height, numSeg) {
     gl.bufferData(gl.ARRAY_BUFFER, oneColor(topDisk.length / 3), gl.STATIC_DRAW);
     gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
 
+    // draw top disk
     gl.drawArrays(gl.TRIANGLE_FAN, 0, numSeg + 2);
-
-    // bottom disk
-    const bottomDisk = [0, -height / 2, 0];
-    for (let i = numSeg; i >= 0; i--) {
-        const angle = (i / numSeg) * 2 * Math.PI;
-        bottomDisk.push(radius * Math.cos(angle), -height / 2, radius * Math.sin(angle));
-    }
 
     // update buffer to contain cylinder bottom disk
     gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bottomDisk), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, bottomDisk, gl.STATIC_DRAW);
     gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
 
     // same but w/ colors
@@ -201,10 +186,75 @@ function drawCylinder(radius, height, numSeg) {
     gl.bufferData(gl.ARRAY_BUFFER, oneColor(bottomDisk.length / 3), gl.STATIC_DRAW);
     gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
     
+    // draw bottom disk
     gl.drawArrays(gl.TRIANGLE_FAN, 0, numSeg + 2);
 }
 
-// need different colors to see visible cylinder rotation
+function setCylinderSides(radius, height, numSeg) {
+    // calculate individual vertices within in each side/segment
+    const sides = [];
+    for (let i = 0; i < numSeg; i++) {
+        const angle = (i / numSeg) * 2 * Math.PI;
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+
+        // // top/bottom vertex for rectangle
+        sides.push(x, height / 2, z);
+        sides.push(x, -height / 2, z);
+    }
+
+    // connecting last segment
+    sides.push(radius, height / 2, 0);
+    sides.push(radius, -height / 2, 0);
+
+    return new Float32Array(sides);
+}
+
+function setCylinderDisks(radius, height, numSeg) {
+    const topDisk = [0, height / 2, 0];
+    const computedTop = createDisk(radius, height, numSeg);
+
+    const bottomDisk = [0, -height / 2, 0];
+    const computedBottom = createDisk(radius, -height, numSeg, true);
+    // both top and bottom disk will have same # of vertices, don't need to worry about which to choose
+    for (let i = 0; i <= computedTop.length; i++) {
+        topDisk.push(computedTop[i]);
+        bottomDisk.push(computedBottom[i]);
+    }
+
+    return [new Float32Array(topDisk), new Float32Array(bottomDisk)];
+}
+
+// helper to create disk
+function createDisk(width, height, steps, reverse=false) {
+    // leave empty, so we can merge this w/ initial top/bottom vertices
+    const vertices = [];
+
+    // bottom disk
+    if (reverse) {
+        for (let i = steps; i >= 0; i--) {
+            const angle = (i / steps) * 2 * Math.PI;
+            const x = width * Math.cos(angle);
+            const y = height / 2;
+            const z = width * Math.sin(angle)
+            vertices.push(x, y, z);
+        }
+    }
+    // top disk
+    else {
+        for (let i = 0; i <= steps; i++) {
+            const angle = (i / steps) * 2 * Math.PI;
+            const x = width * Math.cos(angle);
+            const y = height / 2;
+            const z = width * Math.sin(angle)
+            vertices.push(x, y, z);
+        }
+    }
+
+    return new Float32Array(vertices);
+}
+
+// need different colors to see visible cylinder/sphere rotation
 function threeColor(numVerts) {
     const colors = [
         1.0, 0.0, 0.0,
@@ -220,6 +270,7 @@ function threeColor(numVerts) {
     return new Float32Array(c);
 }
 
+// one solid color helper
 function oneColor(numVerts) {
     const c = [];
     for (let i = 0; i < numVerts; i++) {
@@ -229,9 +280,32 @@ function oneColor(numVerts) {
 }
 
 // stacks = latitude, sectors = longtitude
-function drawSphere(radius, numStacks, numSectors) {
+function drawSphere() {
+    const radius = 0.25;
+    const numStacks = 20;
+    const numSectors = 20;
+
     gl.uniformMatrix4fv(mMatrixLocation, false, sphereMMatrix);
 
+    // set vertices/indices for sphere
+    const [vertices, indices] = setSphere(radius, numStacks, numSectors);
+
+    // update buffer to contain cylinder side/segment vertices
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+    // same but w/ colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, threeColor(vertices.length / 3), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+}
+
+function setSphere(radius, numStacks, numSectors) {
     let vertices = [];
     const sectorStep = 2 * Math.PI / numSectors;
     const stackStep = Math.PI / numStacks;
@@ -265,19 +339,8 @@ function drawSphere(radius, numStacks, numSectors) {
             indices.push(second, second + 1, first + 1);
         }
     }
-    // update buffer to contain cylinder side/segment vertices
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
 
-    // same but w/ colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, threeColor(vertices.length / 3), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+    return [new Float32Array(vertices), new Float32Array(indices)];
 }
 
 function draw() {
@@ -293,8 +356,8 @@ function draw() {
     gl.uniformMatrix4fv(pMatrixLocation, false, pMatrix);
 
     drawCube();
-    drawCylinder(0.25, 0.5, 32);
-    drawSphere(0.25, 20, 20);
+    drawCylinder();
+    drawSphere();
 }
 
 document.addEventListener('keydown', (e)=>{
