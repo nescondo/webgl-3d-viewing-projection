@@ -60,6 +60,8 @@ let vMatrix = mat4.create();
 let pMatrix = mat4.create();
 
 vMatrix = mat4.lookAt(vMatrix, [0, 0, 3], [0, 0, 0], [0, 1, 0]);
+
+// perspective projection
 pMatrix = mat4.perspective(pMatrix, 45, 1, 1, 10);
 
 function setCube(cubeVertices) {
