@@ -38,51 +38,6 @@ const fragmentShaderSource = `
 <script>
 // Set up geometry data
 
-// Cube
-const cubeVertices = new Float32Array([
-    0.25,  0.25, -0.25,  // right, top,    far
-   -0.25,  0.25, -0.25,  // left,  top,    far
-   -0.25, -0.25, -0.25,  // left,  bottom, far
-    0.25, -0.25, -0.25,  // right, bottom, far
-    0.25,  0.25,  0.25,  // right, top,    near
-   -0.25,  0.25,  0.25,  // left,  top,    near
-   -0.25, -0.25,  0.25,  // left,  bottom, near
-    0.25, -0.25,  0.25   // right, bottom, near
-]);
-
-// Indices need to be Unsigned Short Array
-const cubeIndices = new Uint16Array([
-    0,1,2, // far face
-    0,2,3, // far face
-    0,3,7, // right face
-    0,7,4, // right face
-    6,2,3, // bottom face
-    6,3,7, // bottom face
-    5,1,2, // left face
-    5,2,6, // left face
-    5,1,0, // top face
-    5,0,4, // top face
-    5,6,7, // near face
-    5,7,4  // near face
-]);
-
-// Indices need to be Unsigned Short Array
-const sphereIndices = new Uint16Array([
-    0,1,2, // far face
-    0,2,3, // far face
-    0,3,7, // right face
-    0,7,4, // right face
-    6,2,3, // bottom face
-    6,3,7, // bottom face
-    5,1,2, // left face
-    5,2,6, // left face
-    5,1,0, // top face
-    5,0,4, // top face
-    5,6,7, // near face
-    5,7,4  // near face
-]);
-
-
 // Remember - can reuse same buffer b/c we draw sequentially!!! (so will only create 1)
 // Create a buffer and upload the vertex data
 const vertex_buffer = gl.createBuffer();
@@ -104,90 +59,27 @@ const pMatrixLocation = gl.getUniformLocation(program, "pMatrix");
 let vMatrix = mat4.create();
 let pMatrix = mat4.create();
 
-// individual model matrices per object (cube, cylinder, sphere);
-let cubeMMatrix = mat4.create();
-let cylinderMMatrix = mat4.create();
-let sphereMMatrix = mat4.create();
-
 vMatrix = mat4.lookAt(vMatrix, [0, 0, 3], [0, 0, 0], [0, 1, 0]);
 pMatrix = mat4.perspective(pMatrix, 45, 1, 1, 10);
 
-// set initial positions
-mat4.translate(cubeMMatrix, cubeMMatrix, [1.0, 0, 0]);
-mat4.translate(cylinderMMatrix, cylinderMMatrix, [-1.0, 0, 0]);
-mat4.translate(sphereMMatrix, sphereMMatrix, [0, 0, 0]);
+function setCube(cubeVertices) {
+    // Indices need to be Unsigned Short Array
+    const cubeIndices = new Uint16Array([
+        0,1,2, // far face
+        0,2,3, // far face
+        0,3,7, // right face
+        0,7,4, // right face
+        6,2,3, // bottom face
+        6,3,7, // bottom face
+        5,1,2, // left face
+        5,2,6, // left face
+        5,1,0, // top face
+        5,0,4, // top face
+        5,6,7, // near face
+        5,7,4  // near face
+    ]);
 
-function drawCube() {
-    // send matrix data into shader
-    gl.uniformMatrix4fv(mMatrixLocation, false, cubeMMatrix);
-
-    // draw and update buffer to contain cube vertices
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer); // target specific GPU memory block
-    gl.bufferData(gl.ARRAY_BUFFER, cubeVertices, gl.STATIC_DRAW); // update buffer to contain cube vertices
-    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0); // how GPU reads data in buffer
-
-    // same but with colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, threeColor(cubeVertices.length / 3), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cubeIndices, gl.STATIC_DRAW);
-    gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_SHORT, 0);
-}
-
-function drawCylinder() {
-    const radius = 0.25;
-    const height = 0.5;
-    const numSeg = 32;
-
-    // send matrix data into shader
-    gl.uniformMatrix4fv(mMatrixLocation, false, cylinderMMatrix);
-
-    // sides of cylinder created
-    const sides = setCylinderSides(radius, height, numSeg);
-
-    // update buffer to contain cylinder side/segment vertices
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, sides, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // same but w/ colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, threeColor(sides.length / 3), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // draw sides
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, numSeg * 2 + 2);
-
-    // top disk, bottom disk of cylinder created
-    const [topDisk, bottomDisk] = setCylinderDisks(radius, height, numSeg);
-
-    // update buffer to contain cylinder top disk
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, topDisk, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // same but w/ colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, oneColor(topDisk.length / 3), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // draw top disk
-    gl.drawArrays(gl.TRIANGLE_FAN, 0, numSeg + 2);
-
-    // update buffer to contain cylinder bottom disk
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, bottomDisk, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // same but w/ colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, oneColor(bottomDisk.length / 3), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
-    
-    // draw bottom disk
-    gl.drawArrays(gl.TRIANGLE_FAN, 0, numSeg + 2);
+    return [new Float32Array(cubeVertices), new Uint16Array(cubeIndices)]
 }
 
 function setCylinderSides(radius, height, numSeg) {
@@ -217,7 +109,7 @@ function setCylinderDisks(radius, height, numSeg) {
     const bottomDisk = [0, -height / 2, 0];
     const computedBottom = createDisk(radius, -height, numSeg, true);
     // both top and bottom disk will have same # of vertices, don't need to worry about which to choose
-    for (let i = 0; i <= computedTop.length; i++) {
+    for (let i = 0; i < computedTop.length; i++) {
         topDisk.push(computedTop[i]);
         bottomDisk.push(computedBottom[i]);
     }
@@ -271,38 +163,12 @@ function threeColor(numVerts) {
 }
 
 // one solid color helper
-function oneColor(numVerts) {
+function oneColor(numVerts, color) {
     const c = [];
     for (let i = 0; i < numVerts; i++) {
-        c.push(1.0, 0.5, 0.5);
+        c.push(color[0], color[1], color[2]);
     }
     return new Float32Array(c);
-}
-
-// stacks = latitude, sectors = longtitude
-function drawSphere() {
-    const radius = 0.25;
-    const numStacks = 20;
-    const numSectors = 20;
-
-    gl.uniformMatrix4fv(mMatrixLocation, false, sphereMMatrix);
-
-    // set vertices/indices for sphere
-    const [vertices, indices] = setSphere(radius, numStacks, numSectors);
-
-    // update buffer to contain cylinder side/segment vertices
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
-
-    // same but w/ colors
-    gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, threeColor(vertices.length / 3), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
 }
 
 function setSphere(radius, numStacks, numSectors) {
@@ -340,7 +206,7 @@ function setSphere(radius, numStacks, numSectors) {
         }
     }
 
-    return [new Float32Array(vertices), new Float32Array(indices)];
+    return [new Float32Array(vertices), new Uint16Array(indices)];
 }
 
 function draw() {
@@ -355,42 +221,260 @@ function draw() {
     gl.uniformMatrix4fv(vMatrixLocation, false, vMatrix);
     gl.uniformMatrix4fv(pMatrixLocation, false, pMatrix);
 
-    drawCube();
-    drawCylinder();
-    drawSphere();
+    scene.draw();
 }
 
+class Shape {
+    constructor(vertices, indices, mMatrix, drawType, solidColor=false, color=[1.0, 1.0, 1.0]) {
+        this.vertices = vertices;
+        this.indices = indices;       // null for cylinder disks and sides
+        this.mMatrix = mMatrix;
+        this.drawType = drawType;
+        this.solidColor = solidColor;
+        this.color = color;
+    }
+
+    drawCube(parentMatrix = mat4.create()) {
+        // compute combined matrix first before drawing
+        const combinedMatrix = mat4.create();
+        mat4.multiply(combinedMatrix, parentMatrix, this.mMatrix);
+        gl.uniformMatrix4fv(mMatrixLocation, false, combinedMatrix);
+
+        // draw and update buffer to contain cube vertices
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+        // same but with colors
+        gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, threeColor(this.vertices.length / 3), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+        gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+    }
+
+    drawCylinderSides(parentMatrix = mat4.create()) {
+        // compute combined matrix first before drawing
+        const combinedMatrix = mat4.create();
+        mat4.multiply(combinedMatrix, parentMatrix, this.mMatrix);
+        gl.uniformMatrix4fv(mMatrixLocation, false, combinedMatrix);
+
+        // update buffer to contain cylinder side/segment vertices
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+        // same but w/ colors
+        gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, threeColor(this.vertices.length / 3), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+        // draw sides
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.vertices.length / 3);
+    }
+
+    drawDisk(parentMatrix = mat4.create()) {
+        // compute combined matrix first before drawing
+        const combinedMatrix = mat4.create();
+        mat4.multiply(combinedMatrix, parentMatrix, this.mMatrix);
+        gl.uniformMatrix4fv(mMatrixLocation, false, combinedMatrix);
+
+        // update buffer to contain disk vertices
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+        // same but w/ colors
+        gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, oneColor(this.vertices.length / 3, this.color), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, this.vertices.length / 3);
+    }
+
+    drawSphere(parentMatrix = mat4.create()) {
+        // compute combined matrix first before drawing
+        const combinedMatrix = mat4.create();
+        mat4.multiply(combinedMatrix, parentMatrix, this.mMatrix);
+        gl.uniformMatrix4fv(mMatrixLocation, false, combinedMatrix);
+
+        // update buffer to contain sphere vertices
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0);
+
+        // same but w/ colors
+        gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+
+        if (this.solidColor) {
+            gl.bufferData(gl.ARRAY_BUFFER, oneColor(this.vertices.length / 3, this.color), gl.STATIC_DRAW);
+        }
+        else {
+            gl.bufferData(gl.ARRAY_BUFFER, threeColor(this.vertices.length / 3), gl.STATIC_DRAW);
+        }
+        gl.vertexAttribPointer(aColorLocation, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+        gl.drawElements(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+    }
+}
+
+class ObjectWebGL {
+    constructor(mMatrix = mat4.create(), solidColor=false) { // sets 4x4 identity immediately as parent
+        this.shapes = [];
+        this.mMatrix = mMatrix;
+        this.children = [];
+        this.solidColor = solidColor;
+    }
+
+    local_transform(matrix){
+        mat4.multiply(this.mMatrix, this.mMatrix, matrix);
+    }
+
+    draw(parentMatrix = mat4.create()) {
+        const combinedMatrix = mat4.create();
+        mat4.multiply(combinedMatrix, parentMatrix, this.mMatrix);
+
+        for (const shape of this.shapes) {
+            if (shape.drawType === 'cube') {
+                shape.drawCube(combinedMatrix);
+            } else if (shape.drawType === 'cylinderSides') {
+                shape.drawCylinderSides(combinedMatrix);
+            } else if (shape.drawType === 'disk') {
+                shape.drawDisk(combinedMatrix);
+            } else if (shape.drawType === 'sphere') {
+                shape.drawSphere(combinedMatrix);
+            }
+        }
+
+        // children may be shapes or parents (ObjectWebGL)
+        for (const child of this.children) {
+            if (typeof child.draw === 'function') {
+                // recursive draw if object is a parent (ObjectWebGL)
+                child.draw(combinedMatrix);
+            }
+        }
+    }
+}
+
+// build scene hierarchy
+
+// layer 1 - overall scene
+const scene = new ObjectWebGL();
+
+// layer 2 - person (child of scene)
+const person = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0]));
+scene.children.push(person);
+
+// body (shape of person)
+const bodyPoints = [
+    0.25,   0.4,  -.25,     // right, top,    far
+    -0.25,  0.4,  -.25,     // left,  top,    far
+    -0.25, -0.4,  -.25,     // left,  bottom, far
+    0.25,  -0.4,  -.25,     // right, bottom, far
+    0.25,   0.4,   .25,     // right, top,    near
+    -0.25,  0.4,   .25,     // left,  top,    near
+    -0.25, -0.4,   .25,     // left,  bottom, near
+    0.25,  -0.4,   .25      // right, bottom, near
+];
+const [bodyVertices, bodyIndices] = setCube(bodyPoints);
+person.shapes.push(new Shape(bodyVertices, bodyIndices, mat4.create(), 'cube'));
+
+// layer 3 - left leg, right leg, left arm, right arm (child of person)
+
+// left leg
+const leftLeg = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-0.175, -.7, 0]));
+const legPoints = [
+    0.075,   0.3,  -.05,     // right, top,    far
+    -0.075,  0.3,  -.05,     // left,  top,    far
+    -0.075, -0.3,  -.05,     // left,  bottom, far
+    0.075,  -0.3,  -.05,     // right, bottom, far
+    0.075,   0.3,   .05,     // right, top,    near
+    -0.075,  0.3,   .05,     // left,  top,    near
+    -0.075, -0.3,   .05,     // left,  bottom, near
+    0.075,  -0.3,   .05      // right, bottom, near
+];
+const [leftLegVertices, leftLegIndices] = setCube(legPoints);
+leftLeg.shapes.push(new Shape(leftLegVertices, leftLegIndices, mat4.create(), 'cube'));
+person.children.push(leftLeg);
+
+// right leg
+const rightLeg = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0.175, -.7, 0]));
+const [rightLegVertices, rightLegIndices] = setCube(legPoints);
+rightLeg.shapes.push(new Shape(rightLegVertices, rightLegIndices, mat4.create(), 'cube'));
+person.children.push(rightLeg);
+
+// left arm
+const leftArm = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-.325, 0, 0]));
+const armPoints = [
+    0.075,   0.25,  -0.02,     // right, top,    near
+    -0.075,  0.25,  -0.02,     // left,  top,    near
+    -0.075, -0.25,  -0.02,     // left,  bottom, near
+    0.075,  -0.25,  -0.02,     // right, bottom, near
+    0.075,   0.25,  0.02,     // right, top,    near
+    -0.075,  0.25,  0.02,     // left,  top,    near
+    -0.075, -0.25,  0.02,     // left,  bottom, near
+    0.075,  -0.25,  0.02      // right, bottom, near
+];
+const [leftArmVertices, leftArmIndices] = setCube(armPoints);
+leftArm.shapes.push(new Shape(leftArmVertices, leftArmIndices, mat4.create(), 'cube'));
+person.children.push(leftArm);
+
+// right arm
+const rightArm = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [.325, 0, 0]));
+const [rightArmVertices, rightArmIndices] = setCube(armPoints);
+rightArm.shapes.push(new Shape(rightArmVertices, rightArmIndices, mat4.create(), 'cube'));
+person.children.push(rightArm);
+
+// head
+const head = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0.65, 0]));
+const [headVertices, headIndices] = setSphere(0.25, 20, 20);
+head.shapes.push(new Shape(headVertices, headIndices, mat4.create(), 'sphere'));
+person.children.push(head);
+
+// eye
+const eye = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0.25]));
+const [eyeVertices, eyeIndices] = setSphere(0.1, 20, 20);
+eye.shapes.push(new Shape(eyeVertices, eyeIndices, mat4.create(), 'sphere', true));
+head.children.push(eye);
+
+// layer 3 pupil (child of eye)
+const pupil = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [0, 0, 0.075]));
+const [pupilVertices, pupilIndices] = setSphere(0.05, 20, 20);
+pupil.shapes.push(new Shape(pupilVertices, pupilIndices, mat4.create(), 'sphere', true, color=[1.0, 0.0, 0.0]));
+eye.children.push(pupil);
+
+// cylinder at [-1, 0, 0]
+const cylinderObj = new ObjectWebGL(mat4.fromTranslation(mat4.create(), [-1.0, -1.5, 0]));
+const cylinderSides = setCylinderSides(0.25, 0.5, 32);
+cylinderObj.shapes.push(new Shape(cylinderSides, null, mat4.create(), 'cylinderSides'));
+const [topDisk, bottomDisk] = setCylinderDisks(0.25, 0.5, 32);
+cylinderObj.shapes.push(new Shape(topDisk, null, mat4.create(), 'disk'));
+cylinderObj.shapes.push(new Shape(bottomDisk, null, mat4.create(), 'disk'));
+scene.children.push(cylinderObj);
+
 document.addEventListener('keydown', (e)=>{
+    const identity = mat4.create();
     if (e.key == 'w'){
-        mat4.rotateX(cubeMMatrix, cubeMMatrix, 0.1);
-        mat4.rotateX(cylinderMMatrix, cylinderMMatrix, 0.1);
-        mat4.rotateX(sphereMMatrix, sphereMMatrix, 0.1)
+        scene.local_transform(mat4.fromXRotation(identity, 0.1));
     }
     else if (e.key == 's'){
-        mat4.rotateX(cubeMMatrix, cubeMMatrix, -0.1);
-        mat4.rotateX(cylinderMMatrix, cylinderMMatrix, -0.1);
-        mat4.rotateX(sphereMMatrix, sphereMMatrix, -0.1)
+        scene.local_transform(mat4.fromXRotation(identity, -0.1));
     }
     else if (e.key == 'a'){
-        mat4.rotateY(cubeMMatrix, cubeMMatrix, -0.1);
-        mat4.rotateY(cylinderMMatrix, cylinderMMatrix, -0.1);
-        mat4.rotateY(sphereMMatrix, sphereMMatrix, -0.1)
+        scene.local_transform(mat4.fromYRotation(identity, -0.1));
     }
     else if (e.key == 'd'){
-        mat4.rotateY(cubeMMatrix, cubeMMatrix, 0.1);
-        mat4.rotateY(cylinderMMatrix, cylinderMMatrix, 0.1);
-        mat4.rotateY(sphereMMatrix, sphereMMatrix, 0.1)
+        scene.local_transform(mat4.fromYRotation(identity, 0.1));
     }
     else if (e.key == 'q'){
-        mat4.rotateZ(cubeMMatrix, cubeMMatrix, -0.1);
-        mat4.rotateZ(cylinderMMatrix, cylinderMMatrix, -0.1);
-        mat4.rotateZ(sphereMMatrix, sphereMMatrix, -0.1)
+        scene.local_transform(mat4.fromZRotation(identity, -0.1));
     }
-    
     else if (e.key == 'e'){
-        mat4.rotateZ(cubeMMatrix, cubeMMatrix, 0.1);
-        mat4.rotateZ(cylinderMMatrix, cylinderMMatrix, 0.1);
-        mat4.rotateZ(sphereMMatrix, sphereMMatrix, 0.1)
+        scene.local_transform(mat4.fromZRotation(identity, 0.1));
     }
     else if (e.key == 'ArrowLeft'){
         mat4.rotateY(vMatrix, vMatrix, -0.1);
@@ -403,6 +487,9 @@ document.addEventListener('keydown', (e)=>{
     }
     else if (e.key == 'ArrowDown'){
         mat4.rotateX(vMatrix, vMatrix, 0.1);
+    }
+    else if (e.key == "o"){
+        person.local_transform(mat4.fromXRotation(identity, 0.1));
     }
     draw();
 }, false);
