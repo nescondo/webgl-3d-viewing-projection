@@ -60,6 +60,9 @@ let vMatrix = mat4.create();
 let pMatrix = mat4.create();
 
 vMatrix = mat4.lookAt(vMatrix, [0, 0, 3], [0, 0, 0], [0, 1, 0]);
+let cMatrix = mat4.create(); // remember - view and camera matrices are closely related, but different!!!
+mat4.invert(cMatrix, vMatrix); // inversion of vMatrix
+
 
 // perspective projection
 pMatrix = mat4.perspective(pMatrix, 45, 1, 1, 10);
@@ -590,22 +593,34 @@ document.addEventListener('keydown', (e)=>{
     }
 
     else if (e.key == 'ArrowLeft'){
-        mat4.rotateY(vMatrix, vMatrix, -0.1);
+        const yRot = mat4.fromYRotation(mat4.create(), -0.1)
+        mat4.multiply(cMatrix, cMatrix, yRot);
+        mat4.invert(vMatrix, cMatrix);
     }
     else if (e.key == 'ArrowRight'){
-        mat4.rotateY(vMatrix, vMatrix, 0.1);
+        const yRot = mat4.fromYRotation(mat4.create(), 0.1)
+        mat4.multiply(cMatrix, cMatrix, yRot);
+        mat4.invert(vMatrix, cMatrix);
     }
     else if (e.key == 'ArrowUp'){
-        mat4.rotateX(vMatrix, vMatrix, -0.1);
+        const xRot = mat4.fromXRotation(mat4.create(), -0.1)
+        mat4.multiply(cMatrix, cMatrix, xRot);
+        mat4.invert(vMatrix, cMatrix);
     }
     else if (e.key == 'ArrowDown'){
-        mat4.rotateX(vMatrix, vMatrix, 0.1);
+        const xRot = mat4.fromXRotation(mat4.create(), 0.1)
+        mat4.multiply(cMatrix, cMatrix, xRot);
+        mat4.invert(vMatrix, cMatrix);
     }
     else if (e.key == 'b'){
-        mat4.rotateZ(vMatrix, vMatrix, -0.1);
+        const zRot = mat4.fromZRotation(mat4.create(), -0.1)
+        mat4.multiply(cMatrix, cMatrix, zRot);
+        mat4.invert(vMatrix, cMatrix);
     }
     else if (e.key == 'n'){
-        mat4.rotateZ(vMatrix, vMatrix, 0.1);
+        const zRot = mat4.fromZRotation(mat4.create(), 0.1)
+        mat4.multiply(cMatrix, cMatrix, zRot);
+        mat4.invert(vMatrix, cMatrix);
     }
     draw();
 }, false);
